@@ -112,7 +112,10 @@ void readValidLine(char *buffer, size_t size, char *announce, char *valueType) {
     int isEmpty = 1;
     for (int i = 0; buffer[i] != '\0'; i++) {
 
-      // isspace return 1 if agurment is space in ASCII
+      // isspace return non-zero integer if agurment is space (\n, \t, \f, \r,
+      // \v, ' ') in ASCII
+
+      // return 0 if argument is whitespace
       if (!isspace((unsigned char)buffer[i])) {
         isEmpty = 0;
         return;
