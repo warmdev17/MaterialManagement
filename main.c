@@ -135,18 +135,28 @@ void readInt(int *number, char *announce, char *valueType) {
   bool isValid = false;
 
   while (!isValid) {
-    printf("%s", announce);
+    printf("\n%s", announce);
 
-    if (scanf("%d", number) == 1) {
-      if (*number >= 0) {
-        isValid = true;
+    char numberTest[10000000];
+
+    fgets(numberTest, sizeof(number), stdin);
+    numberTest[strcspn(numberTest, "\n")] = '\0';
+
+    if (sscanf(numberTest, "%d", number) == 1) {
+      if (scanf("%d", number) == 1) {
+        if (*number >= 0) {
+          isValid = true;
+        } else {
+          printf(RED
+                 "%s must be greater or equal zero, please type again.\n" RESET,
+                 valueType);
+        }
       } else {
-        printf(RED
-               "%s must be greater or equal zero, please type again.\n" RESET,
-               valueType);
+        printf(RED "Invalid %s, please type again.\n" RESET, valueType);
       }
     } else {
-      printf(RED "Invalid %s, please type again.\n" RESET, valueType);
+      printf("\nquantity must be a number, please type again: ");
+      continue;
     }
 
     clearBuffer();
@@ -212,6 +222,8 @@ void createNewMaterial(Material **materials, int *materialCount,
   (*materials + idxMaterial)->status = 1;
 
   (*indexOfMaterial)++;
+
+  debugML(materials, materialCount, indexOfMaterial);
 
   printf(BLUE "\nAdd new materials successfully\n\n" RESET);
 }
@@ -311,7 +323,7 @@ void updateMaterialStatus(Material *materials, int materialCount) {
 
   (materials + idx)->status = 0;
 
-  printf(BLUE "Update status material with %s successfully!" RESET, id);
+  printf(BLUE "Update status material with %s successfully!\n" RESET, id);
 }
 
 // ===== Find material by id ===== ( absolute id )
