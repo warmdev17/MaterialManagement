@@ -19,7 +19,7 @@ typedef struct {
   char name[50];
   char unit[10];
   int qty;    // quantity in storage
-  int status; // 1. active | 2. expired
+  int status; // 1. active | 0. expired
 } Material;
 
 typedef struct {
@@ -29,48 +29,53 @@ typedef struct {
   char date[15]; // transaction time
 } Transaction;
 
+// ======= PROTOTYPES =======
+void displayMenu();
+
 void readValidLine(char *buffer, size_t size, char *announce, char *valueType);
-int findMaterialIndexById(Material *m, char *id, int materialCount);
 void readInt(int *number, char *announce, char *valueType);
-void clearBuffer();
-void createNewMaterial(Material **materials, int *materialCount,
-                       int *indexOfMaterial);
+
+int findMaterialIndexById(Material *m, char *id, int materialCount);
+
+void createNewMaterial(Material **materials, int *materialCount);
 void updateMaterial(Material *materials, int materialCount);
 void updateMaterialStatus(Material *materials, int materialCount);
+int readStatusWithDefault();
 void findByID(Material *materials, int materialCount);
 void findByName(Material *materials, int materialCount);
-void showMaterialByID(Material *materials, char *id, char materialCount);
-void debugML(Material **materials, int *materialCount, int *indexOfMaterial);
-void showCurrentInfo(Material *materials, int idx);
-void getMaterialID(Material *materials, int materialCount);
 
+void displayMaterialList(Material *materials, int materialCount);
+void showCurrentInfo(Material *materials, int idx);
+
+// ======= MENU =======
 void displayMenu() {
-  printf(GREEN "========================\n" RESET);
-  printf(YELLOW "1. Add new materials\n" RESET);
-  printf(YELLOW "2. Update materials\n" RESET);
-  printf(GREEN "========================\n" RESET);
+  printf(
+      GREEN
+      "==================== MATERIAL MANAGEMENT ====================\n" RESET);
+  printf(YELLOW " 1. Add new materials\n" RESET);
+  printf(YELLOW " 2. Update material info\n" RESET);
+  printf(YELLOW " 3. Update material status\n" RESET);
+  printf(YELLOW " 4. Find material by ID\n" RESET);
+  printf(YELLOW "11. Display material list\n" RESET);
+  printf(YELLOW "10. Exit\n" RESET);
+  printf(
+      GREEN
+      "=============================================================\n" RESET);
 }
 
+// ======= MAIN =======
 int main() {
   Material *materials = NULL;
   int materialCount = 0;
-  int indexOfMaterial = 0;
 
   int choice;
   do {
     displayMenu();
-    printf("Enter your choice: ");
-    if (scanf("%d", &choice) != 1) {
-      clearBuffer();
-      printf(RED "Invalid choice, please try again!!\n" RESET);
-      choice = 0;
-      continue;
-    }
-    clearBuffer();
+    readInt(&choice, "Enter your choice: ", "choice");
 
     switch (choice) {
     case 1: {
-      createNewMaterial(&materials, &materialCount, &indexOfMaterial);
+      createNewMaterial(&materials, &materialCount);
       break;
     }
     case 2: {
@@ -85,8 +90,20 @@ int main() {
       findByID(materials, materialCount);
       break;
     }
+    case 5: {
+      findByName(materials, materialCount);
+      break;
+    }
     case 11: {
-      debugML(&materials, &materialCount, &indexOfMaterial);
+      displayMaterialList(materials, materialCount);
+      break;
+    }
+    case 10: {
+      printf(BLUE "Exiting program...\n" RESET);
+      break;
+    }
+    default: {
+      printf(RED "Invalid choice, please try again.\n\n" RESET);
       break;
     }
     }
@@ -111,23 +128,18 @@ void readValidLine(char *buffer, size_t size, char *announce, char *valueType) {
 
     int isEmpty = 1;
     for (int i = 0; buffer[i] != '\0'; i++) {
-
-      // isspace return non-zero integer if agurment is space (\n, \t, \f, \r,
-      // \v, ' ') in ASCII
-
-      // return 0 if argument is whitespace
       if (!isspace((unsigned char)buffer[i])) {
         isEmpty = 0;
-        return;
+        return; // valid (has non-space char)
       }
     }
 
     if (isEmpty) {
-      printf(RED "%s cannot empty. Please type again!!!\n" RESET, valueType);
+      printf(RED "%s cannot be empty. Please type again!!!\n" RESET, valueType);
       continue;
     }
 
-    return; // break if buffer is not empty
+    return;
   }
 }
 
@@ -135,48 +147,38 @@ void readInt(int *number, char *announce, char *valueType) {
   bool isValid = false;
 
   while (!isValid) {
-    printf("\n%s", announce);
+    char numberTest[1000];
 
-    char numberTest[10000000];
-
-    fgets(numberTest, sizeof(number), stdin);
-    numberTest[strcspn(numberTest, "\n")] = '\0';
-
-    if (sscanf(numberTest, "%d", number) == 1) {
-      if (scanf("%d", number) == 1) {
-        if (*number >= 0) {
-          isValid = true;
-        } else {
-          printf(RED
-                 "%s must be greater or equal zero, please type again.\n" RESET,
-                 valueType);
-        }
-      } else {
-        printf(RED "Invalid %s, please type again.\n" RESET, valueType);
-      }
-    } else {
-      printf("\nquantity must be a number, please type again: ");
+    printf("%s", announce);
+    if (fgets(numberTest, sizeof(numberTest), stdin) == NULL) {
+      printf(RED "Error reading %s, please try again.\n" RESET, valueType);
       continue;
     }
 
-    clearBuffer();
-  }
-}
+    numberTest[strcspn(numberTest, "\n")] = '\0';
 
-void clearBuffer() {
-  char c;
-  while ((c = getchar()) != '\n' && c != EOF) {
+    if (sscanf(numberTest, "%d", number) == 1) {
+      if (*number >= 0) {
+        isValid = true;
+      } else {
+        printf(RED
+               "%s must be greater or equal zero, please type again.\n" RESET,
+               valueType);
+      }
+    } else {
+      printf(RED "Invalid %s, please type again.\n" RESET, valueType);
+    }
   }
 }
 
 // ======= Material management helper =======
-void createNewMaterial(Material **materials, int *materialCount,
-                       int *indexOfMaterial) {
+void createNewMaterial(Material **materials, int *materialCount) {
   if (*materialCount >= MAX_LIST_SIZE) {
     printf(RED "Material list reached max size (%d). Cannot add more.\n" RESET,
            MAX_LIST_SIZE);
     return;
   }
+
   int idxMaterial = *materialCount;
   (*materialCount)++;
 
@@ -189,16 +191,16 @@ void createNewMaterial(Material **materials, int *materialCount,
   }
   *materials = temp;
 
-  // get material id
+  // get material id (must be unique)
   do {
     readValidLine((*materials + idxMaterial)->matId,
                   sizeof((*materials + idxMaterial)->matId),
                   "Enter id of material: ", "ID");
 
     if (findMaterialIndexById(*materials, (*materials + idxMaterial)->matId,
-                              *indexOfMaterial) != -1) {
-      printf(RED "\nID must not match the ID of the product in stock, please "
-                 "try again!\n" RESET);
+                              idxMaterial) != -1) {
+      printf(RED "\nID must not duplicate existing material ID, "
+                 "please try again!\n" RESET);
     } else {
       break;
     }
@@ -219,19 +221,15 @@ void createNewMaterial(Material **materials, int *materialCount,
                 "Enter unit of materials: ", "Unit");
 
   // default status 1 is active
-  (*materials + idxMaterial)->status = 1;
+  (*materials + idxMaterial)->status = readStatusWithDefault();
 
-  (*indexOfMaterial)++;
-
-  debugML(materials, materialCount, indexOfMaterial);
-
-  printf(BLUE "\nAdd new materials successfully\n\n" RESET);
+  printf(BLUE "\nAdd new material successfully\n\n" RESET);
 }
 
 // ======= Update material via ID =======
 void updateMaterial(Material *materials, int materialCount) {
   if (materialCount == 0) {
-    printf(RED "Material list is empty. Nothing to update.\n" RESET);
+    printf(RED "Material list is empty. Nothing to update.\n\n" RESET);
     return;
   }
 
@@ -248,21 +246,21 @@ void updateMaterial(Material *materials, int materialCount) {
   showCurrentInfo(materials, idx);
   int mode;
   do {
-    printf(GREEN "===============\n" RESET);
+    printf(GREEN "=============== EDIT MENU ===============\n" RESET);
     printf(YELLOW "1. Edit name\n" RESET);
     printf(YELLOW "2. Edit unit\n" RESET);
     printf(YELLOW "3. Edit quantity\n" RESET);
     printf(YELLOW "4. Edit all\n" RESET);
     printf(YELLOW "5. Exit\n" RESET);
-    printf(GREEN "===============\n" RESET);
-    readInt(&mode, "Enter info to edit: ", "Mode");
+    printf(GREEN "=========================================\n" RESET);
+
+    readInt(&mode, "Enter info to edit: ", "mode");
     switch (mode) {
     case 1: {
       readValidLine(materials[idx].name, sizeof(materials[idx].name),
                     "Enter new name: ", "Name");
       printf(BLUE "\nUpdate name of material with ID %s successfully.\n" RESET,
              id);
-
       showCurrentInfo(materials, idx);
       break;
     }
@@ -271,7 +269,6 @@ void updateMaterial(Material *materials, int materialCount) {
                     "Enter new unit: ", "Unit");
       printf(BLUE "\nUpdate unit of material with ID %s successfully.\n" RESET,
              id);
-
       showCurrentInfo(materials, idx);
       break;
     }
@@ -280,9 +277,7 @@ void updateMaterial(Material *materials, int materialCount) {
       printf(BLUE
              "\nUpdate quantity of material with ID %s successfully.\n" RESET,
              id);
-
       showCurrentInfo(materials, idx);
-
       break;
     }
     case 4: {
@@ -293,16 +288,14 @@ void updateMaterial(Material *materials, int materialCount) {
       readInt(&materials[idx].qty, "Enter new quantity: ", "quantity");
 
       printf(BLUE "\nUpdate material with ID %s successfully.\n" RESET, id);
-
       showCurrentInfo(materials, idx);
-
       break;
     }
     case 5: {
       break;
     }
     default: {
-      printf(RED "Invalid info please choose name/unit/quantity/all\n" RESET);
+      printf(RED "Invalid option, please choose 1-5.\n" RESET);
       break;
     }
     }
@@ -311,9 +304,13 @@ void updateMaterial(Material *materials, int materialCount) {
 
 // ==== UPDATE STATUS ====
 void updateMaterialStatus(Material *materials, int materialCount) {
+  if (materialCount == 0) {
+    printf(RED "Material list is empty.\n\n" RESET);
+    return;
+  }
 
   char id[10];
-  readValidLine(id, sizeof(id), "Enter material ID to update: ", "ID");
+  readValidLine(id, sizeof(id), "Enter material ID to toggle status: ", "ID");
 
   int idx = findMaterialIndexById(materials, id, materialCount);
   if (idx == -1) {
@@ -321,13 +318,49 @@ void updateMaterialStatus(Material *materials, int materialCount) {
     return;
   }
 
-  (materials + idx)->status = 0;
+  materials[idx].status = !materials[idx].status;
 
-  printf(BLUE "Update status material with %s successfully!\n" RESET, id);
+  printf(BLUE "Status toggled successfully! New status: %s\n" RESET,
+         (materials[idx].status ? "Active" : "Expired"));
+}
+
+// ===== read material status with validation =====
+int readStatusWithDefault() {
+  char line[20];
+
+  while (1) {
+    printf("Enter status (0 = expired, 1 = active, empty = default active): ");
+
+    if (fgets(line, sizeof(line), stdin) == NULL) {
+      printf(RED "Error reading input. Try again.\n" RESET);
+      continue;
+    }
+
+    // remove '\n'
+    line[strcspn(line, "\n")] = '\0';
+
+    // empty -> default
+    if (strlen(line) == 0) {
+      return 1; // default Active
+    }
+
+    // check valid 0 or 1
+    if (strcmp(line, "0") == 0)
+      return 0;
+    if (strcmp(line, "1") == 0)
+      return 1;
+
+    // invalid input
+    printf(RED "Status must be 0 or 1. Please type again.\n" RESET);
+  }
 }
 
 // ===== Find material by id ===== ( absolute id )
 void findByID(Material *materials, int materialCount) {
+  if (materialCount == 0) {
+    printf(RED "Material list is empty.\n\n" RESET);
+    return;
+  }
 
   char id[10];
   readValidLine(id, sizeof(id), "Enter material ID to find: ", "ID");
@@ -336,13 +369,62 @@ void findByID(Material *materials, int materialCount) {
   if (idx == -1) {
     printf(RED "Material with this ID was not found.\n\n" RESET);
     return;
-  } else {
-    showMaterialByID(materials, id, materialCount);
   }
+
+  showCurrentInfo(materials, idx);
 }
 
-// ==== Find material by name ====
-void findByName(Material *materials, int materialCount) {}
+// ==== Find material by name (substring, case-insensitive) ====
+int charToLower(int c) {
+  if (c >= 'A' && c <= 'Z')
+    return c - 'A' + 'a';
+  return c;
+}
+
+int containsIgnoreCase(char *haystack, char *needle) {
+  if (*needle == '\0')
+    return 1;
+
+  size_t lenH = strlen(haystack);
+  size_t lenN = strlen(needle);
+  if (lenN > lenH)
+    return 0;
+
+  for (size_t i = 0; i <= lenH - lenN; i++) {
+    size_t j = 0;
+    while (j < lenN && charToLower((unsigned char)haystack[i + j]) ==
+                           charToLower((unsigned char)needle[j])) {
+      j++;
+    }
+    if (j == lenN)
+      return 1;
+  }
+  return 0;
+}
+
+void findByName(Material *materials, int materialCount) {
+  if (materialCount == 0) {
+    printf(RED "Material list is empty.\n\n" RESET);
+    return;
+  }
+
+  char keyword[50];
+  readValidLine(keyword, sizeof(keyword), "Enter name to search: ", "Name");
+
+  int found = 0;
+  printf(GREEN "\nSearch results:\n" RESET);
+
+  for (int i = 0; i < materialCount; i++) {
+    if (containsIgnoreCase(materials[i].name, keyword)) {
+      showCurrentInfo(materials, i);
+      found = 1;
+    }
+  }
+
+  if (!found) {
+    printf(RED "No material matched this name.\n\n" RESET);
+  }
+}
 
 // show current material info
 void showCurrentInfo(Material *materials, int idx) {
@@ -350,32 +432,8 @@ void showCurrentInfo(Material *materials, int idx) {
   printf("ID   : %s\n", materials[idx].matId);
   printf("Name : %s\n", materials[idx].name);
   printf("Unit : %s\n", materials[idx].unit);
-  printf("Qty  : %d\n\n", materials[idx].qty);
-}
-
-// show material by id
-void showMaterialByID(Material *materials, char *id, char materialCount) {
-  for (int i = 0; i < materialCount; i++) {
-    if (strcmp((materials + i)->matId, id) == 0) {
-      printf(GREEN "\nCurrent information:\n" RESET);
-      printf("ID   : %s\n", materials[i].matId);
-      printf("Name : %s\n", materials[i].name);
-      printf("Unit : %s\n", materials[i].unit);
-      printf("Qty  : %d\n\n", materials[i].qty);
-    }
-  }
-}
-
-// get material ID
-void getMaterialID(Material *materials, int materialCount) {
-  char id[10];
-  readValidLine(id, sizeof(id), "Enter material ID to update: ", "ID");
-
-  int idx = findMaterialIndexById(materials, id, materialCount);
-  if (idx == -1) {
-    printf(RED "Material with this ID was not found.\n\n" RESET);
-    return;
-  }
+  printf("Qty  : %d\n", materials[idx].qty);
+  printf("Status: %s\n\n", (materials[idx].status == 1) ? "Active" : "Expired");
 }
 
 // check valid id
@@ -388,12 +446,29 @@ int findMaterialIndexById(Material *m, char *id, int count) {
   return -1;
 }
 
-// debug materials list
-void debugML(Material **materials, int *materialCount, int *indexOfMaterial) {
-  for (int i = 0; i < *materialCount; i++) {
-    printf("id: %s\n", (*materials + i)->matId);
-    printf("Name: %s\n", (*materials + i)->name);
-    printf("quantity: %d\n", (*materials + i)->qty);
-    printf("unit: %s\n", (*materials + i)->unit);
+// ===== Display material list =====
+void displayMaterialList(Material *materials, int materialCount) {
+  if (materialCount == 0) {
+    printf(RED "\nMaterial list is empty.\n\n" RESET);
+    return;
   }
+
+  printf("\n+------+------------+-----------------------------------+----------"
+         "+------------+------------+\n");
+  printf("|  No  |  Mat ID    | Name                              |   Qty    | "
+         "  Unit     |  Status    |\n");
+  printf("+------+------------+-----------------------------------+----------+-"
+         "-----------+------------+\n");
+
+  for (int i = 0; i < materialCount; i++) {
+    char *result =
+        (materials[i].status == 1) ? (char *)"Active" : (char *)"Expired";
+
+    printf("| %4d | %-10s | %-33s | %8d | %-10s | %-10s |\n", i + 1,
+           materials[i].matId, materials[i].name, materials[i].qty,
+           materials[i].unit, result);
+  }
+
+  printf("+------+------------+-----------------------------------+----------+-"
+         "-----------+------------+\n\n");
 }
