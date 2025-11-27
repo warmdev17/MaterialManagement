@@ -447,11 +447,15 @@ int findMaterialIndexById(Material *m, char *id, int count) {
 }
 
 // ===== Display material list =====
-void displayMaterialList(Material *materials, int materialCount) {
-  if (materialCount == 0) {
-    printf(RED "\nMaterial list is empty.\n\n" RESET);
+void printMaterialPage(Material *materials, int materialCount, int page,
+                       int pageSize) {
+  int start = page * pageSize;
+  int end = start + pageSize;
+
+  if (start >= materialCount)
     return;
-  }
+  if (end > materialCount)
+    end = materialCount;
 
   printf("\n+------+------------+-----------------------------------+----------"
          "+------------+------------+\n");
@@ -460,15 +464,49 @@ void displayMaterialList(Material *materials, int materialCount) {
   printf("+------+------------+-----------------------------------+----------+-"
          "-----------+------------+\n");
 
-  for (int i = 0; i < materialCount; i++) {
-    char *result =
-        (materials[i].status == 1) ? (char *)"Active" : (char *)"Expired";
-
+  for (int i = start; i < end; i++) {
+    char *result = (materials[i].status == 1) ? "Active" : "Expired";
     printf("| %4d | %-10s | %-33s | %8d | %-10s | %-10s |\n", i + 1,
            materials[i].matId, materials[i].name, materials[i].qty,
            materials[i].unit, result);
   }
 
   printf("+------+------------+-----------------------------------+----------+-"
-         "-----------+------------+\n\n");
+         "-----------+------------+\n");
+  printf("Page %d / %d\n\n", page + 1,
+         (materialCount + pageSize - 1) / pageSize);
+}
+
+void displayMaterialList(Material *materials, int materialCount) {
+  if (materialCount == 0) {
+    printf(RED "\nMaterial list is empty.\n\n" RESET);
+    return;
+  }
+
+  int page = 0;
+  int pageSize = 10;
+  int totalPages = (materialCount + pageSize - 1) / pageSize;
+
+  while (1) {
+    system("clear");
+
+    printMaterialPage(materials, materialCount, page, pageSize);
+
+    printf("1. Next page\n");
+    printf("2. Previous page\n");
+    printf("0. Exit\n");
+
+    int choice;
+    readInt(&choice, "Your choice: ", "Choice");
+
+    if (choice == 1) {
+      if (page < totalPages - 1)
+        page++;
+    } else if (choice == 2) {
+      if (page > 0)
+        page--;
+    } else if (choice == 0) {
+      break;
+    }
+  }
 }
