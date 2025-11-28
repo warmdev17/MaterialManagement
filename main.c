@@ -38,17 +38,18 @@ void initTestData(Material **materials, int *materialCount);
 void readValidLine(char *buffer, size_t size, char *announce, char *valueType);
 void readInt(int *number, char *announce, char *valueType);
 
-int findMaterialIndexById(Material *m, char *id, int materialCount);
-
 void createNewMaterial(Material **materials, int *materialCount);
 void updateMaterial(Material *materials, int materialCount);
 void updateMaterialStatus(Material *materials, int materialCount);
 int readStatusWithDefault();
 int findByID(Material *materials, int materialCount, char *target);
 void findByName(Material *materials, int materialCount, char *target);
+int findMaterialIndexById(Material *m, char *id, int materialCount);
 void findMaterialByIdOrName(Material *materials, int materialCount);
 
 void displayMaterialList(Material *materials, int materialCount);
+void printMaterialPage(Material *materials, int materialCount, int page,
+                       int pageSize, int *index);
 void showCurrentInfo(Material *materials, int idx);
 
 // ======= MENU =======
@@ -156,30 +157,35 @@ void readValidLine(char *buffer, size_t size, char *announce, char *valueType) {
 }
 
 void readInt(int *number, char *announce, char *valueType) {
-  bool isValid = false;
-
-  while (!isValid) {
-    char numberTest[1000];
+  while (1) {
+    char input[1000];
 
     printf("%s", announce);
-    if (fgets(numberTest, sizeof(numberTest), stdin) == NULL) {
+
+    if (fgets(input, sizeof(input), stdin) == NULL) {
       printf(RED "Error reading %s, please try again.\n" RESET, valueType);
       continue;
     }
 
-    numberTest[strcspn(numberTest, "\n")] = '\0';
+    input[strcspn(input, "\n")] = '\0';
 
-    if (sscanf(numberTest, "%d", number) == 1) {
-      if (*number >= 0) {
-        isValid = true;
-      } else {
-        printf(RED
-               "%s must be greater or equal zero, please type again.\n" RESET,
-               valueType);
-      }
-    } else {
-      printf(RED "Invalid %s, please type again.\n" RESET, valueType);
+    if (strlen(input) == 0) {
+      printf(RED "%s cannot be empty, please type again.\n" RESET, valueType);
+      continue;
     }
+
+    if (sscanf(input, "%d", number) != 1) {
+      printf(RED "Invalid %s, please type again.\n" RESET, valueType);
+      continue;
+    }
+
+    if (*number < 0) {
+      printf(RED "%s must be greater or equal zero, please type again.\n" RESET,
+             valueType);
+      continue;
+    }
+
+    break;
   }
 }
 
