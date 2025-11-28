@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 // escape sequence for terminal color
 #define RED "\033[31m"
@@ -50,31 +51,61 @@ void sortMaterial(Material *materials, int materialCount);
 
 void displayMaterialList(Material *materials, int materialCount);
 void printMaterialPage(Material *materials, int materialCount, int page,
-                       int pageSize, int *index);
+                       int pageSize);
 void showCurrentInfo(Material *materials, int idx);
+
+void createNewTransaction(Transaction **transactions, int *transactionCount,
+                          Material *materials, int materialCount,
+                          char *transID);
+void transferMaterial(Transaction **transactions, Material *materials,
+                      int *transactionCount, int materialCount, char *id,
+                      int type,
+                      char *transID); // type 1: import | type 2: export
+void displayTransactionByID(Transaction *transactions, int transactionCount);
+void displayTransactionList(Transaction *transactions, int transactionIdx);
+Transaction generateTransferHistory(char *matID, char *transID, int type);
+
+// ======= Log with color =======
+void logToConsole(char *type, char *log) {
+  if (strcmp(type, "error") == 0) {
+    printf(RED "%s" RESET, log);
+  } else if (strcmp(type, "choosen") == 0) {
+    printf(YELLOW "%s" RESET, log);
+  } else if (strcmp(type, "border") == 0) {
+    printf(GREEN "%s" RESET, log);
+  } else if (strcmp(type, "announce") == 0) {
+    printf(BLUE "%s" RESET, log);
+  }
+}
 
 // ======= MENU =======
 void displayMenu() {
-  printf(
-      GREEN
-      "==================== MATERIAL MANAGEMENT ====================\n" RESET);
-  printf(YELLOW " 1. Add new materials\n" RESET);
-  printf(YELLOW " 2. Update material info\n" RESET);
-  printf(YELLOW " 3. Update material status\n" RESET);
-  printf(YELLOW " 4. Find material by ID/Name\n" RESET);
-  printf(YELLOW "5. Display material list\n" RESET);
-  printf(YELLOW "6. Sort material list\n" RESET);
-  printf(YELLOW "12. Clear screen\n" RESET);
-  printf(YELLOW "10. Exit\n" RESET);
-  printf(
-      GREEN
-      "=============================================================\n" RESET);
+  logToConsole(
+      "border",
+      "=============================================================\n");
+  logToConsole("choosen", " 1. Add new material\n");
+  logToConsole("choosen", " 2. Update material info\n");
+  logToConsole("choosen", " 3. Update material status\n");
+  logToConsole("choosen", " 4. Find material by ID/Name\n");
+  logToConsole("choosen", " 5. Display material list\n");
+  logToConsole("choosen", " 6. Sort material list\n");
+  logToConsole("choosen", " 7. Make a transfer\n");
+  logToConsole("choosen", "10. Exit\n");
+  logToConsole("choosen", "11. Clear screen\n");
+  logToConsole(
+      "border",
+      "=============================================================\n");
 }
 
 // ======= MAIN =======
 int main() {
   Material *materials = NULL;
+  Transaction *transaction = NULL;
+
+  char firstTransID[20] = "T001";
+
   int materialCount = 0;
+  int transactionCount = 0;
 
 #if USE_TEST_DATA
   initTestData(&materials, &materialCount);
@@ -83,7 +114,7 @@ int main() {
   int choice;
   do {
     displayMenu();
-    readInt(&choice, "Enter your choice: ", "choice");
+    readInt(&choice, "Enter your choice: ", "Choice");
 
     switch (choice) {
     case 1: {
@@ -110,22 +141,36 @@ int main() {
       sortMaterial(materials, materialCount);
       break;
     }
-    case 12: {
+    case 7: {
+      createNewTransaction(&transaction, &transactionCount, materials,
+                           materialCount, firstTransID);
+      break;
+    }
+    case 8: {
+      displayTransactionByID(transaction, transactionCount);
+      break;
+    }
+    case 9: {
+      displayTransactionList(transaction, transactionCount);
+      break;
+    }
+    case 11: {
       system("clear");
       break;
     }
     case 10: {
-      printf(BLUE "Exiting program...\n" RESET);
+      logToConsole("announce", "Exiting program...\n");
       break;
     }
     default: {
-      printf(RED "Invalid choice, please try again.\n\n" RESET);
+      logToConsole("error", "Invalid choice, please try again.\n\n");
       break;
     }
     }
   } while (choice != 10);
 
-  // free(materials);
+  free(materials);
+  free(transaction);
   return 0;
 }
 
@@ -135,7 +180,7 @@ void readValidLine(char *buffer, size_t size, char *announce, char *valueType) {
     printf("%s", announce);
 
     if (fgets(buffer, size, stdin) == NULL) {
-      printf(RED "Error reading input\n" RESET);
+      logToConsole("error", "Error reading input\n");
       continue;
     }
 
@@ -206,7 +251,7 @@ void createNewMaterial(Material **materials, int *materialCount) {
   // reallocate
   Material *temp = realloc(*materials, *materialCount * sizeof(Material));
   if (temp == NULL) {
-    printf(RED "Allocate failed\n" RESET);
+    logToConsole("error", "Allocate failed\n");
     (*materialCount)--;
     return;
   }
@@ -220,8 +265,8 @@ void createNewMaterial(Material **materials, int *materialCount) {
 
     if (findMaterialIndexById(*materials, (*materials + idxMaterial)->matId,
                               idxMaterial) != -1) {
-      printf(RED "\nID must not duplicate existing material ID, "
-                 "please try again!\n" RESET);
+      logToConsole("error", "\nID must not duplicate existing material ID, "
+                            "please try again!\n");
     } else {
       break;
     }
@@ -244,7 +289,148 @@ void createNewMaterial(Material **materials, int *materialCount) {
   // default status 1 is active
   (*materials + idxMaterial)->status = readStatusWithDefault();
 
-  printf(BLUE "\nAdd new material successfully\n\n" RESET);
+  logToConsole("announce", "\nAdd new material successfully\n\n");
+}
+
+// ======= Create new transaction =======
+void createNewTransaction(Transaction **transactions, int *transactionCount,
+                          Material *materials, int materialCount,
+                          char *transID) {
+  int mode;
+  char id[10];
+
+  while (1) {
+    logToConsole("border", "====================\n");
+    logToConsole("choosen", "1. Import material\n");
+    logToConsole("choosen", "2. Export material\n");
+    logToConsole("choosen", "3. Exit to main menu\n");
+    logToConsole("border", "====================\n");
+
+    readInt(&mode, "Enter mode: ", "mode");
+
+    // back to main menu
+    if (mode == 3) {
+      system("clear");
+      break;
+    }
+
+    // invalid mode
+    if (mode != 1 && mode != 2) {
+      logToConsole("error", "Invalid mode. Please choose 1, 2 or 3.\n");
+      continue;
+    }
+
+    // import/export
+    while (1) {
+      readValidLine(id, sizeof(id), "Enter id of material: ", "ID");
+
+      int idx = findMaterialIndexById(materials, id, materialCount);
+      if (idx == -1) {
+        printf(RED "ID not found in material list\n" RESET);
+        continue; // cho nhập lại ID
+      }
+
+      // 0/expired -> cannot transfẻ
+      if (materials[idx].status == 0) {
+        logToConsole(
+            "error",
+            "This material is locked/expired. Cannot make a transaction.\n");
+        continue; // enter other id
+      }
+
+      transferMaterial(transactions, materials, transactionCount, materialCount,
+                       id, mode, transID);
+      break;
+    }
+  }
+}
+
+// ======= Transfer material =======
+void transferMaterial(Transaction **transactions, Material *materials,
+                      int *transactionCount, int materialCount, char *id,
+                      int type, char *transId) {
+  if (*transactionCount > MAX_LIST_SIZE) {
+    printf(RED "Transaction list reached max size (%d). Cannot add more!" RESET,
+           MAX_LIST_SIZE);
+    return;
+  }
+  int idxTransaction = *transactionCount;
+  (*transactionCount)++;
+
+  // reacollate transaction list
+  Transaction *temp =
+      realloc(*transactions, *transactionCount * sizeof(Transaction));
+  if (temp == NULL) {
+    printf(RED "Allocate failed\n" RESET);
+    (*transactionCount)--;
+    return;
+  }
+  *transactions = temp;
+
+  int transCount = 0;
+
+  for (int i = 0; i < materialCount; i++) {
+    if (strcasecmp(materials[i].matId, id) == 0) {
+      if (type == 1) {
+        showCurrentInfo(materials, i);
+        // import
+        do {
+          readInt(&transCount,
+                  "Enter amount of material to import: ", "Amount of material");
+          if (transCount <= 0) {
+            logToConsole("error", "Amount must be greater than zero.\n");
+          }
+        } while (transCount <= 0);
+        materials[i].qty += transCount;
+        (*transactions)[idxTransaction] =
+            generateTransferHistory(materials[i].matId, transId, type);
+        showCurrentInfo(materials, i);
+      } else {
+        // export
+        do {
+          showCurrentInfo(materials, i);
+
+          readInt(&transCount,
+                  "Enter amount of material to export: ", "Amount of material");
+          if (transCount <= 0) {
+            logToConsole("error", "Amount must be greater than zero.\n");
+            continue;
+          }
+          if (transCount > materials[i].qty) {
+            logToConsole("error", "The quantity of materials exceeds the "
+                                  "quantity on hand. Please type again!\n");
+            continue;
+          } else {
+            materials[i].qty -= transCount;
+            (*transactions)[idxTransaction] =
+                generateTransferHistory(materials[i].matId, transId, type);
+            showCurrentInfo(materials, i);
+            break;
+          }
+        } while (1);
+      }
+    }
+  }
+}
+
+// ======= Generate transfer history ========
+Transaction generateTransferHistory(char *matID, char *transID, int type) {
+  Transaction transactions;
+  char prefix = transID[0];
+  int number = atoi(transID + 1);
+  sprintf(transID, "%c%03d", prefix, number);
+  number++;
+  strcpy(transactions.transId, transID);
+
+  strcpy(transactions.matId, matID);
+  if (type == 1) {
+    strcpy(transactions.type, "IN");
+  } else {
+    strcpy(transactions.type, "OUT");
+  }
+
+  strcpy(transactions.date, "28/12/2025");
+  return transactions;
 }
 
 // ======= Update material via ID =======
@@ -337,7 +523,7 @@ void findMaterialByIdOrName(Material *materials, int materialCount) {
     return;
   }
 
-  char target[10];
+  char target[50];
   readValidLine(target, sizeof(target), "Enter ID or Name to find: ", "target");
 
   int idx = findByID(materials, materialCount, target);
@@ -358,23 +544,22 @@ int findByID(Material *materials, int materialCount, char *target) {
 
   int idx = findMaterialIndexById(materials, target, materialCount);
   if (idx == -1) {
-    findByName(materials, materialCount, target);
     printf(RED "Material with this ID was not found.\n\n" RESET);
-    return idx;
+    return -1;
   }
 
   showCurrentInfo(materials, idx);
-
   return idx;
 }
 
-// ==== Find material by name (substring, case-insensitive) ====
+// char to lowercase
 int charToLower(int c) {
   if (c >= 'A' && c <= 'Z')
     return c - 'A' + 'a';
   return c;
 }
 
+// subtring checking
 int containsIgnoreCase(char *haystack, char *needle) {
   if (*needle == '\0')
     return 1;
@@ -396,6 +581,7 @@ int containsIgnoreCase(char *haystack, char *needle) {
   return 0;
 }
 
+// ==== Find material by name (substring, case-insensitive) ====
 void findByName(Material *materials, int materialCount, char *target) {
   Material m[100];
   int count = 0;
@@ -425,14 +611,15 @@ void findByName(Material *materials, int materialCount, char *target) {
 // show current material info
 void showCurrentInfo(Material *materials, int idx) {
   printf(GREEN "\nCurrent information:\n" RESET);
-  printf("ID   : %s\n", materials[idx].matId);
-  printf("Name : %s\n", materials[idx].name);
-  printf("Unit : %s\n", materials[idx].unit);
-  printf("Qty  : %d\n", materials[idx].qty);
-  printf("Status: %s\n\n", (materials[idx].status == 1) ? "Active" : "Expired");
+  printf("ID     : %s\n", materials[idx].matId);
+  printf("Name   : %s\n", materials[idx].name);
+  printf("Unit   : %s\n", materials[idx].unit);
+  printf("Qty    : %d\n", materials[idx].qty);
+  printf("Status : %s\n\n",
+         (materials[idx].status == 1) ? "Active" : "Expired");
 }
 
-// check valid id
+// find exist material id
 int findMaterialIndexById(Material *m, char *id, int count) {
   for (int i = 0; i < count; i++) {
     if (strcmp(m[i].matId, id) == 0) {
@@ -442,9 +629,19 @@ int findMaterialIndexById(Material *m, char *id, int count) {
   return -1;
 }
 
+// find exist transaction id
+int findTransactionIndexById(Transaction *t, char *id, int count) {
+  for (int i = 0; i < count; i++) {
+    if (strcmp(t[i].matId, id) == 0) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 // ===== Display material list =====
 void printMaterialPage(Material *materials, int materialCount, int page,
-                       int pageSize, int *index) {
+                       int pageSize) {
   int start = page * pageSize;
   int end = start + pageSize;
 
@@ -471,10 +668,6 @@ void printMaterialPage(Material *materials, int materialCount, int page,
          "-----------+------------+\n");
   printf("Page %d / %d\n\n", page + 1,
          (materialCount + pageSize - 1) / pageSize);
-
-  if (index != NULL) {
-    *index = start;
-  }
 }
 
 void displayMaterialList(Material *materials, int materialCount) {
@@ -487,7 +680,6 @@ void displayMaterialList(Material *materials, int materialCount) {
   int totalPages = (materialCount + pageSize - 1) / pageSize;
 
   int currentPage = 1;
-  int index = 0;
 
   while (1) {
     system("clear");
@@ -495,8 +687,7 @@ void displayMaterialList(Material *materials, int materialCount) {
     printf(GREEN "MATERIAL LIST\n" RESET);
     printf("Total materials: %d\n", materialCount);
 
-    printMaterialPage(materials, materialCount, currentPage - 1, pageSize,
-                      &index);
+    printMaterialPage(materials, materialCount, currentPage - 1, pageSize);
 
     printf("You are on page %d of %d.\n", currentPage, totalPages);
 
@@ -517,8 +708,6 @@ void displayMaterialList(Material *materials, int materialCount) {
     currentPage = pageToView;
   }
 }
-
-void swapName(char *str1, char *str2) {}
 
 // ===== sortMaterial ===== (by name, by quantity)
 void sortMaterial(Material *materials, int materialCount) {
@@ -573,6 +762,33 @@ void sortMaterial(Material *materials, int materialCount) {
     }
     }
   } while (mode != 0);
+}
+
+void displayTransactionList(Transaction *transactions, int transactionIdx) {
+  for (int i = 0; i < transactionIdx; i++) {
+    printf("transID: %s\n", transactions[i].transId);
+    printf("matID: %s\n", transactions[i].matId);
+    printf("type: %s\n", transactions[i].type);
+    printf("date: %s\n", transactions[i].date);
+  }
+}
+
+void displayTransactionByID(Transaction *transactions, int transactionCount) {
+  char id[10];
+  readValidLine(id, sizeof(id),
+                "Enter material id to see transfer history: ", "Material ID");
+  for (int i = 0; i < transactionCount; i++) {
+    if (strcmp(transactions[i].matId, id) == 0) {
+      printf(GREEN "\n\nTransfer history of material with ID: %s\n" RESET, id);
+      printf("TransID: %s\n", transactions[i].transId);
+      printf("MatID  : %s\n", transactions[i].matId);
+      printf("Type   : %s\n", transactions[i].type);
+      printf("Date   : %s\n", transactions[i].date);
+      printf("\n");
+      return;
+    }
+  }
+  printf("Material ID not found");
 }
 
 void initTestData(Material **materials, int *materialCount) {
