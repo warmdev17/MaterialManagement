@@ -46,6 +46,7 @@ int findByID(Material *materials, int materialCount, char *target);
 void findByName(Material *materials, int materialCount, char *target);
 int findMaterialIndexById(Material *m, char *id, int materialCount);
 void findMaterialByIdOrName(Material *materials, int materialCount);
+void sortMaterial(Material *materials, int materialCount);
 
 void displayMaterialList(Material *materials, int materialCount);
 void printMaterialPage(Material *materials, int materialCount, int page,
@@ -61,7 +62,8 @@ void displayMenu() {
   printf(YELLOW " 2. Update material info\n" RESET);
   printf(YELLOW " 3. Update material status\n" RESET);
   printf(YELLOW " 4. Find material by ID/Name\n" RESET);
-  printf(YELLOW "11. Display material list\n" RESET);
+  printf(YELLOW "5. Display material list\n" RESET);
+  printf(YELLOW "6. Sort material list\n" RESET);
   printf(YELLOW "12. Clear screen\n" RESET);
   printf(YELLOW "10. Exit\n" RESET);
   printf(
@@ -101,10 +103,11 @@ int main() {
       break;
     }
     case 5: {
+      displayMaterialList(materials, materialCount);
       break;
     }
-    case 11: {
-      displayMaterialList(materials, materialCount);
+    case 6: {
+      sortMaterial(materials, materialCount);
       break;
     }
     case 12: {
@@ -513,6 +516,63 @@ void displayMaterialList(Material *materials, int materialCount) {
 
     currentPage = pageToView;
   }
+}
+
+void swapName(char *str1, char *str2) {}
+
+// ===== sortMaterial ===== (by name, by quantity)
+void sortMaterial(Material *materials, int materialCount) {
+  int mode;
+  do {
+    printf(GREEN "===============\n" RESET);
+    printf(YELLOW "1. Sort by name (a-z)\n");
+    printf(YELLOW "2. Sort by quantity ( ascending )\n" RESET);
+    printf(YELLOW "3. Back to main menu\n" RESET);
+    printf(GREEN "===============\n" RESET);
+    readInt(&mode, "Enter mode to sort: ", "mode");
+    switch (mode) {
+    case 1: {
+      for (int i = 0; i < materialCount - 1; i++) {
+        bool isSwap = false;
+        for (int j = 0; j < materialCount - i - 1; j++) {
+          if (strcasecmp(materials[j].name, materials[j + 1].name) > 0) {
+            Material tmp = materials[j];
+            materials[j] = materials[j + 1];
+            materials[j + 1] = tmp;
+            isSwap = true;
+          }
+        }
+        if (!isSwap) {
+          break;
+        }
+      }
+      displayMaterialList(materials, materialCount);
+      break;
+    }
+    case 2: {
+      for (int i = 0; i < materialCount - 1; i++) {
+        bool isSwap = false;
+        for (int j = 0; j < materialCount - i - 1; j++) {
+          if (materials[j].qty > materials[j + 1].qty) {
+            Material tmp = materials[j];
+            materials[j] = materials[j + 1];
+            materials[j + 1] = tmp;
+            isSwap = true;
+          }
+        }
+        if (!isSwap) {
+          break;
+        }
+      }
+      displayMaterialList(materials, materialCount);
+      break;
+    }
+    case 3: {
+      system("clear");
+      return;
+    }
+    }
+  } while (mode != 0);
 }
 
 void initTestData(Material **materials, int *materialCount) {
