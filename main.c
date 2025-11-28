@@ -12,13 +12,15 @@
 #define BLUE "\033[34m"
 #define RESET "\033[0m"
 
+#define USE_TEST_DATA 1
+
 #define MAX_LIST_SIZE 100
 
 typedef struct {
   char matId[10];
   char name[50];
+  int qty; // quantity in storage
   char unit[10];
-  int qty;    // quantity in storage
   int status; // 1. active | 0. expired
 } Material;
 
@@ -31,6 +33,7 @@ typedef struct {
 
 // ======= PROTOTYPES =======
 void displayMenu();
+void initTestData(Material **materials, int *materialCount);
 
 void readValidLine(char *buffer, size_t size, char *announce, char *valueType);
 void readInt(int *number, char *announce, char *valueType);
@@ -41,8 +44,9 @@ void createNewMaterial(Material **materials, int *materialCount);
 void updateMaterial(Material *materials, int materialCount);
 void updateMaterialStatus(Material *materials, int materialCount);
 int readStatusWithDefault();
-void findByID(Material *materials, int materialCount);
-void findByName(Material *materials, int materialCount);
+int findByID(Material *materials, int materialCount, char *target);
+void findByName(Material *materials, int materialCount, char *target);
+void findMaterialByIdOrName(Material *materials, int materialCount);
 
 void displayMaterialList(Material *materials, int materialCount);
 void showCurrentInfo(Material *materials, int idx);
@@ -55,8 +59,9 @@ void displayMenu() {
   printf(YELLOW " 1. Add new materials\n" RESET);
   printf(YELLOW " 2. Update material info\n" RESET);
   printf(YELLOW " 3. Update material status\n" RESET);
-  printf(YELLOW " 4. Find material by ID\n" RESET);
+  printf(YELLOW " 4. Find material by ID/Name\n" RESET);
   printf(YELLOW "11. Display material list\n" RESET);
+  printf(YELLOW "12. Clear screen\n" RESET);
   printf(YELLOW "10. Exit\n" RESET);
   printf(
       GREEN
@@ -67,6 +72,10 @@ void displayMenu() {
 int main() {
   Material *materials = NULL;
   int materialCount = 0;
+
+#if USE_TEST_DATA
+  initTestData(&materials, &materialCount);
+#endif
 
   int choice;
   do {
@@ -87,15 +96,18 @@ int main() {
       break;
     }
     case 4: {
-      findByID(materials, materialCount);
+      findMaterialByIdOrName(materials, materialCount);
       break;
     }
     case 5: {
-      findByName(materials, materialCount);
       break;
     }
     case 11: {
       displayMaterialList(materials, materialCount);
+      break;
+    }
+    case 12: {
+      system("clear");
       break;
     }
     case 10: {
@@ -109,7 +121,7 @@ int main() {
     }
   } while (choice != 10);
 
-  free(materials);
+  // free(materials);
   return 0;
 }
 
@@ -244,62 +256,16 @@ void updateMaterial(Material *materials, int materialCount) {
 
   // show current info
   showCurrentInfo(materials, idx);
-  int mode;
-  do {
-    printf(GREEN "=============== EDIT MENU ===============\n" RESET);
-    printf(YELLOW "1. Edit name\n" RESET);
-    printf(YELLOW "2. Edit unit\n" RESET);
-    printf(YELLOW "3. Edit quantity\n" RESET);
-    printf(YELLOW "4. Edit all\n" RESET);
-    printf(YELLOW "5. Exit\n" RESET);
-    printf(GREEN "=========================================\n" RESET);
 
-    readInt(&mode, "Enter info to edit: ", "mode");
-    switch (mode) {
-    case 1: {
-      readValidLine(materials[idx].name, sizeof(materials[idx].name),
-                    "Enter new name: ", "Name");
-      printf(BLUE "\nUpdate name of material with ID %s successfully.\n" RESET,
-             id);
-      showCurrentInfo(materials, idx);
-      break;
-    }
-    case 2: {
-      readValidLine(materials[idx].unit, sizeof(materials[idx].unit),
-                    "Enter new unit: ", "Unit");
-      printf(BLUE "\nUpdate unit of material with ID %s successfully.\n" RESET,
-             id);
-      showCurrentInfo(materials, idx);
-      break;
-    }
-    case 3: {
-      readInt(&materials[idx].qty, "Enter new quantity: ", "quantity");
-      printf(BLUE
-             "\nUpdate quantity of material with ID %s successfully.\n" RESET,
-             id);
-      showCurrentInfo(materials, idx);
-      break;
-    }
-    case 4: {
-      readValidLine(materials[idx].name, sizeof(materials[idx].name),
-                    "Enter new name: ", "Name");
-      readValidLine(materials[idx].unit, sizeof(materials[idx].unit),
-                    "Enter new unit: ", "Unit");
-      readInt(&materials[idx].qty, "Enter new quantity: ", "quantity");
+  readValidLine(materials[idx].name, sizeof(materials[idx].name),
+                "Enter new name: ", "Name");
+  readValidLine(materials[idx].unit, sizeof(materials[idx].unit),
+                "Enter new unit: ", "Unit");
+  readInt(&materials[idx].qty, "Enter new quantity: ", "quantity");
 
-      printf(BLUE "\nUpdate material with ID %s successfully.\n" RESET, id);
-      showCurrentInfo(materials, idx);
-      break;
-    }
-    case 5: {
-      break;
-    }
-    default: {
-      printf(RED "Invalid option, please choose 1-5.\n" RESET);
-      break;
-    }
-    }
-  } while (mode != 5);
+  printf(BLUE "\nUpdate material with ID %s successfully.\n" RESET, id);
+
+  showCurrentInfo(materials, idx);
 }
 
 // ==== UPDATE STATUS ====
@@ -355,23 +321,42 @@ int readStatusWithDefault() {
   }
 }
 
-// ===== Find material by id ===== ( absolute id )
-void findByID(Material *materials, int materialCount) {
+// ===== Find by ID or Name ====
+void findMaterialByIdOrName(Material *materials, int materialCount) {
   if (materialCount == 0) {
     printf(RED "Material list is empty.\n\n" RESET);
     return;
   }
 
-  char id[10];
-  readValidLine(id, sizeof(id), "Enter material ID to find: ", "ID");
+  char target[10];
+  readValidLine(target, sizeof(target), "Enter ID or Name to find: ", "target");
 
-  int idx = findMaterialIndexById(materials, id, materialCount);
+  int idx = findByID(materials, materialCount, target);
+
+  if (idx != -1) {
+    showCurrentInfo(materials, idx);
+  } else {
+    findByName(materials, materialCount, target);
+  }
+}
+
+// ===== Find material by id ===== ( absolute id )
+int findByID(Material *materials, int materialCount, char *target) {
+  if (materialCount == 0) {
+    printf(RED "Material list is empty.\n\n" RESET);
+    return -1;
+  }
+
+  int idx = findMaterialIndexById(materials, target, materialCount);
   if (idx == -1) {
+    findByName(materials, materialCount, target);
     printf(RED "Material with this ID was not found.\n\n" RESET);
-    return;
+    return idx;
   }
 
   showCurrentInfo(materials, idx);
+
+  return idx;
 }
 
 // ==== Find material by name (substring, case-insensitive) ====
@@ -402,27 +387,29 @@ int containsIgnoreCase(char *haystack, char *needle) {
   return 0;
 }
 
-void findByName(Material *materials, int materialCount) {
+void findByName(Material *materials, int materialCount, char *target) {
+  Material m[100];
+  int count = 0;
   if (materialCount == 0) {
     printf(RED "Material list is empty.\n\n" RESET);
     return;
   }
 
-  char keyword[50];
-  readValidLine(keyword, sizeof(keyword), "Enter name to search: ", "Name");
-
   int found = 0;
   printf(GREEN "\nSearch results:\n" RESET);
 
   for (int i = 0; i < materialCount; i++) {
-    if (containsIgnoreCase(materials[i].name, keyword)) {
-      showCurrentInfo(materials, i);
+    if (containsIgnoreCase(materials[i].name, target)) {
       found = 1;
+      m[count] = materials[i];
+      count++;
     }
   }
 
   if (!found) {
     printf(RED "No material matched this name.\n\n" RESET);
+  } else {
+    displayMaterialList(m, count);
   }
 }
 
@@ -448,7 +435,7 @@ int findMaterialIndexById(Material *m, char *id, int count) {
 
 // ===== Display material list =====
 void printMaterialPage(Material *materials, int materialCount, int page,
-                       int pageSize) {
+                       int pageSize, int *index) {
   int start = page * pageSize;
   int end = start + pageSize;
 
@@ -475,6 +462,10 @@ void printMaterialPage(Material *materials, int materialCount, int page,
          "-----------+------------+\n");
   printf("Page %d / %d\n\n", page + 1,
          (materialCount + pageSize - 1) / pageSize);
+
+  if (index != NULL) {
+    *index = start;
+  }
 }
 
 void displayMaterialList(Material *materials, int materialCount) {
@@ -483,30 +474,80 @@ void displayMaterialList(Material *materials, int materialCount) {
     return;
   }
 
-  int page = 0;
-  int pageSize = 10;
+  int pageSize = 10; // 2, 3, 5
   int totalPages = (materialCount + pageSize - 1) / pageSize;
+
+  int currentPage = 1;
+  int index = 0;
 
   while (1) {
     system("clear");
 
-    printMaterialPage(materials, materialCount, page, pageSize);
+    printf(GREEN "MATERIAL LIST\n" RESET);
+    printf("Total materials: %d\n", materialCount);
 
-    printf("1. Next page\n");
-    printf("2. Previous page\n");
-    printf("0. Exit\n");
+    printMaterialPage(materials, materialCount, currentPage - 1, pageSize,
+                      &index);
 
-    int choice;
-    readInt(&choice, "Your choice: ", "Choice");
+    printf("You are on page %d of %d.\n", currentPage, totalPages);
 
-    if (choice == 1) {
-      if (page < totalPages - 1)
-        page++;
-    } else if (choice == 2) {
-      if (page > 0)
-        page--;
-    } else if (choice == 0) {
+    int pageToView;
+    readInt(&pageToView, "Enter page to view (0 = back to menu): ", "page");
+
+    if (pageToView == 0) {
       break;
     }
+
+    if (pageToView < 0 || pageToView > totalPages) {
+      printf(RED "Page must be between 1 and %d.\n" RESET, totalPages);
+      printf("Press Enter to continue...");
+      getchar();
+      continue;
+    }
+
+    currentPage = pageToView;
   }
+}
+
+void initTestData(Material **materials, int *materialCount) {
+  Material testData[] = {
+      {"M001", "Bolt 8mm", 120, "pcs", 1},
+      {"M002", "Bolt 10mm", 95, "pcs", 1},
+      {"M003", "Nut 8mm", 200, "pcs", 1},
+      {"M004", "Nut 10mm", 180, "pcs", 1},
+      {"M005", "Steel Plate A3", 50, "kg", 1},
+      {"M006", "Steel Plate A4", 30, "kg", 1},
+      {"M007", "Cable Type-C", 60, "pcs", 1},
+      {"M008", "Cable Type-A", 40, "pcs", 0},
+      {"M009", "Pipe 20mm", 75, "m", 1},
+      {"M010", "Pipe 30mm", 45, "m", 1},
+
+      {"M011", "Washer 8mm", 300, "pcs", 1},
+      {"M012", "Washer 10mm", 260, "pcs", 0},
+      {"M013", "Screw 3cm", 500, "pcs", 1},
+      {"M014", "Screw 5cm", 350, "pcs", 1},
+      {"M015", "Iron Bar 6mm", 80, "m", 1},
+      {"M016", "Iron Bar 8mm", 70, "m", 1},
+      {"M017", "Iron Bar 10mm", 65, "m", 0},
+      {"M018", "Paint Red", 20, "l", 1},
+      {"M019", "Paint Blue", 25, "l", 1},
+      {"M020", "Paint White", 15, "l", 0},
+
+      {"M021", "PVC Glue", 12, "bottle", 1},
+      {"M022", "Contact Glue", 7, "bottle", 1},
+      {"M023", "Bearing 608", 44, "pcs", 1},
+  };
+
+  int testCount = sizeof(testData) / sizeof(testData[0]);
+
+  Material *tmp = malloc(testCount * sizeof(Material));
+  if (tmp == NULL) {
+    printf(RED "Allocate test data failed\n" RESET);
+    return;
+  }
+
+  memcpy(tmp, testData, testCount * sizeof(Material));
+
+  *materials = tmp;
+  *materialCount = testCount;
 }
