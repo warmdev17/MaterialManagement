@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <time.h>
 
 // escape sequence for terminal color
 #define RED "\033[31m"
@@ -720,6 +721,8 @@ void sortMaterial(Material *materials, int materialCount) {
     printf(GREEN "===============\n" RESET);
     readInt(&mode, "Enter mode to sort: ", "mode");
     switch (mode) {
+
+    // sort by name with bubble sort
     case 1: {
       for (int i = 0; i < materialCount - 1; i++) {
         bool isSwap = false;
@@ -738,6 +741,8 @@ void sortMaterial(Material *materials, int materialCount) {
       displayMaterialList(materials, materialCount);
       break;
     }
+
+    // sort by quantity with bubble sort
     case 2: {
       for (int i = 0; i < materialCount - 1; i++) {
         bool isSwap = false;
@@ -788,7 +793,7 @@ void displayTransactionByID(Transaction *transactions, int transactionCount) {
       return;
     }
   }
-  printf("Material ID not found");
+  printf("Material with ID: %s is not yet imported or exported", id);
 }
 
 void initTestData(Material **materials, int *materialCount) {
