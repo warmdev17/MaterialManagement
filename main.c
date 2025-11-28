@@ -327,8 +327,8 @@ void createNewTransaction(Transaction **transactions, int *transactionCount,
 
       int idx = findMaterialIndexById(materials, id, materialCount);
       if (idx == -1) {
-        printf(RED "ID not found in material list\n" RESET);
-        continue; // cho nhập lại ID
+        logToConsole("error", "ID not found in material list\n");
+        continue;
       }
 
       // 0/expired -> cannot transfẻ
@@ -437,7 +437,7 @@ Transaction generateTransferHistory(char *matID, char *transID, int type) {
 // ======= Update material via ID =======
 void updateMaterial(Material *materials, int materialCount) {
   if (materialCount == 0) {
-    printf(RED "Material list is empty. Nothing to update.\n\n" RESET);
+    logToConsole("error", "Material list is empty. Nothing to update.\n\n");
     return;
   }
 
@@ -446,7 +446,7 @@ void updateMaterial(Material *materials, int materialCount) {
 
   int idx = findMaterialIndexById(materials, id, materialCount);
   if (idx == -1) {
-    printf(RED "Material with this ID was not found.\n\n" RESET);
+    logToConsole("error", "Material with this ID was not found.\n\n");
     return;
   }
 
@@ -467,7 +467,7 @@ void updateMaterial(Material *materials, int materialCount) {
 // ==== UPDATE STATUS ====
 void updateMaterialStatus(Material *materials, int materialCount) {
   if (materialCount == 0) {
-    printf(RED "Material list is empty.\n\n" RESET);
+    logToConsole("error", "Material list is empty.\n\n");
     return;
   }
 
@@ -476,7 +476,7 @@ void updateMaterialStatus(Material *materials, int materialCount) {
 
   int idx = findMaterialIndexById(materials, id, materialCount);
   if (idx == -1) {
-    printf(RED "Material with this ID was not found.\n\n" RESET);
+    logToConsole("error", "Material with this ID was not found.\n\n");
     return;
   }
 
@@ -494,7 +494,7 @@ int readStatusWithDefault() {
     printf("Enter status (0 = expired, 1 = active, empty = default active): ");
 
     if (fgets(line, sizeof(line), stdin) == NULL) {
-      printf(RED "Error reading input. Try again.\n" RESET);
+      logToConsole("error", "Error reading input. Try again.\n");
       continue;
     }
 
@@ -513,14 +513,14 @@ int readStatusWithDefault() {
       return 1;
 
     // invalid input
-    printf(RED "Status must be 0 or 1. Please type again.\n" RESET);
+    logToConsole("error", "Status must be 0 or 1. Please type again.\n");
   }
 }
 
 // ===== Find by ID or Name ====
 void findMaterialByIdOrName(Material *materials, int materialCount) {
   if (materialCount == 0) {
-    printf(RED "Material list is empty.\n\n" RESET);
+    logToConsole("error", "Material list is empty.\n\n");
     return;
   }
 
@@ -539,13 +539,13 @@ void findMaterialByIdOrName(Material *materials, int materialCount) {
 // ===== Find material by id ===== ( absolute id )
 int findByID(Material *materials, int materialCount, char *target) {
   if (materialCount == 0) {
-    printf(RED "Material list is empty.\n\n" RESET);
+    logToConsole("error", "Material list is empty.\n\n");
     return -1;
   }
 
   int idx = findMaterialIndexById(materials, target, materialCount);
   if (idx == -1) {
-    printf(RED "Material with this ID was not found.\n\n" RESET);
+    logToConsole("error", "Material with this ID was not found.\n\n");
     return -1;
   }
 
@@ -587,12 +587,12 @@ void findByName(Material *materials, int materialCount, char *target) {
   Material m[100];
   int count = 0;
   if (materialCount == 0) {
-    printf(RED "Material list is empty.\n\n" RESET);
+    logToConsole("error", "Material list is empty.\n\n");
     return;
   }
 
   int found = 0;
-  printf(GREEN "\nSearch results:\n" RESET);
+  logToConsole("border", "\nSearch results:\n");
 
   for (int i = 0; i < materialCount; i++) {
     if (containsIgnoreCase(materials[i].name, target)) {
@@ -603,7 +603,7 @@ void findByName(Material *materials, int materialCount, char *target) {
   }
 
   if (!found) {
-    printf(RED "No material matched this name.\n\n" RESET);
+    logToConsole("error", "No material matched this name.\n\n");
   } else {
     displayMaterialList(m, count);
   }
@@ -611,7 +611,7 @@ void findByName(Material *materials, int materialCount, char *target) {
 
 // show current material info
 void showCurrentInfo(Material *materials, int idx) {
-  printf(GREEN "\nCurrent information:\n" RESET);
+  logToConsole("border", "\nCurrent information:\n");
   printf("ID     : %s\n", materials[idx].matId);
   printf("Name   : %s\n", materials[idx].name);
   printf("Unit   : %s\n", materials[idx].unit);
@@ -673,7 +673,7 @@ void printMaterialPage(Material *materials, int materialCount, int page,
 
 void displayMaterialList(Material *materials, int materialCount) {
   if (materialCount == 0) {
-    printf(RED "\nMaterial list is empty.\n\n" RESET);
+    logToConsole("error", "\nMaterial list is empty.\n\n");
     return;
   }
 
@@ -685,7 +685,7 @@ void displayMaterialList(Material *materials, int materialCount) {
   while (1) {
     system("clear");
 
-    printf(GREEN "MATERIAL LIST\n" RESET);
+    logToConsole("border", "MATERIAL LIST\n");
     printf("Total materials: %d\n", materialCount);
 
     printMaterialPage(materials, materialCount, currentPage - 1, pageSize);
@@ -714,11 +714,11 @@ void displayMaterialList(Material *materials, int materialCount) {
 void sortMaterial(Material *materials, int materialCount) {
   int mode;
   do {
-    printf(GREEN "===============\n" RESET);
-    printf(YELLOW "1. Sort by name (a-z)\n");
-    printf(YELLOW "2. Sort by quantity ( ascending )\n" RESET);
-    printf(YELLOW "3. Back to main menu\n" RESET);
-    printf(GREEN "===============\n" RESET);
+    logToConsole("border", "===============\n");
+    logToConsole("choosen", "1. Sort by name (a-z)\n");
+    logToConsole("choosen", "2. Sort by quantity ( ascending )\n");
+    logToConsole("choosen", "3. Back to main menu\n");
+    logToConsole("border", "===============\n");
     readInt(&mode, "Enter mode to sort: ", "mode");
     switch (mode) {
 
@@ -766,7 +766,7 @@ void sortMaterial(Material *materials, int materialCount) {
       return;
     }
     }
-  } while (mode != 0);
+  } while (mode != 3);
 }
 
 void displayTransactionList(Transaction *transactions, int transactionIdx) {
