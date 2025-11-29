@@ -91,6 +91,7 @@ void displayMenu() {
   logToConsole("choosen", " 5. Display material list\n");
   logToConsole("choosen", " 6. Sort material list\n");
   logToConsole("choosen", " 7. Make a transfer\n");
+  logToConsole("choosen", " 8. Search transactions\n");
   logToConsole("choosen", "10. Exit\n");
   logToConsole("choosen", "11. Clear screen\n");
   logToConsole(
