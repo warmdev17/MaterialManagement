@@ -332,7 +332,7 @@ void createNewTransaction(Transaction **transactions, int *transactionCount,
         continue;
       }
 
-      // 0/expired -> cannot transfẻ
+      // 0/expired -> cannot transfer
       if (materials[idx].status == 0) {
         logToConsole(
             "error",
@@ -363,7 +363,7 @@ void transferMaterial(Transaction **transactions, Material *materials,
   Transaction *temp =
       realloc(*transactions, *transactionCount * sizeof(Transaction));
   if (temp == NULL) {
-    printf(RED "Allocate failed\n" RESET);
+    logToConsole("error", "Allocate failed\n");
     (*transactionCount)--;
     return;
   }
@@ -418,6 +418,7 @@ void transferMaterial(Transaction **transactions, Material *materials,
 // ======= Generate transfer history ========
 Transaction generateTransferHistory(char *matID, char *transID, int type) {
   Transaction transactions;
+
   char prefix = transID[0];
   int number = atoi(transID + 1);
   sprintf(transID, "%c%03d", prefix, number);
@@ -431,7 +432,14 @@ Transaction generateTransferHistory(char *matID, char *transID, int type) {
     strcpy(transactions.type, "OUT");
   }
 
-  strcpy(transactions.date, "28/12/2025");
+  time_t now = time(NULL);
+  struct tm *t = localtime(&now);
+
+  char dateStr[11];
+  strftime(dateStr, sizeof(dateStr), "%d/%m/%Y", t);
+
+  strcpy(transactions.date, dateStr);
+
   return transactions;
 }
 
