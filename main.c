@@ -209,6 +209,7 @@ void readValidLine(char *buffer, size_t size, char *announce, char *valueType) {
 void readInt(int *number, char *announce, char *valueType) {
   while (1) {
     char input[1000];
+    char extra[50]; // to check char after number
 
     printf("%s", announce);
 
@@ -224,7 +225,7 @@ void readInt(int *number, char *announce, char *valueType) {
       continue;
     }
 
-    if (sscanf(input, "%d", number) != 1) {
+    if (sscanf(input, "%d %c", number, extra) != 1) {
       printf(RED "Invalid %s, please type again.\n" RESET, valueType);
       continue;
     }
