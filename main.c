@@ -104,7 +104,7 @@ int main() {
   Material *materials = NULL;
   Transaction *transaction = NULL;
 
-  char firstTransID[20] = "T001";
+  char firstTransID[20] = "T000";
 
   int materialCount = 0;
   int transactionCount = 0;
@@ -209,7 +209,7 @@ void readValidLine(char *buffer, size_t size, char *announce, char *valueType) {
 void readInt(int *number, char *announce, char *valueType) {
   while (1) {
     char input[1000];
-    char extra[50]; // to check char after number
+    char extra; // to check char after number
 
     printf("%s", announce);
 
@@ -225,7 +225,7 @@ void readInt(int *number, char *announce, char *valueType) {
       continue;
     }
 
-    if (sscanf(input, "%d %c", number, extra) != 1) {
+    if (sscanf(input, "%d %c", number, &extra) != 1) {
       printf(RED "Invalid %s, please type again.\n" RESET, valueType);
       continue;
     }
@@ -422,8 +422,8 @@ Transaction generateTransferHistory(char *matID, char *transID, int type) {
 
   char prefix = transID[0];
   int number = atoi(transID + 1);
-  sprintf(transID, "%c%03d", prefix, number);
   number++;
+  sprintf(transID, "%c%03d", prefix, number);
   strcpy(transactions.transId, transID);
 
   strcpy(transactions.matId, matID);
@@ -792,18 +792,21 @@ void displayTransactionByID(Transaction *transactions, int transactionCount) {
   char id[10];
   readValidLine(id, sizeof(id),
                 "Enter material id to see transfer history: ", "Material ID");
+  bool isTransfered = false;
   for (int i = 0; i < transactionCount; i++) {
     if (strcmp(transactions[i].matId, id) == 0) {
+      isTransfered = true;
       printf(GREEN "\n\nTransfer history of material with ID: %s\n" RESET, id);
       printf("TransID: %s\n", transactions[i].transId);
       printf("MatID  : %s\n", transactions[i].matId);
       printf("Type   : %s\n", transactions[i].type);
       printf("Date   : %s\n", transactions[i].date);
       printf("\n");
-      return;
     }
   }
-  printf("Material with ID: %s is not yet imported or exported", id);
+  if (!isTransfered) {
+    printf("Material with ID: %s is not yet imported or exported", id);
+  }
 }
 
 void initTestData(Material **materials, int *materialCount) {
