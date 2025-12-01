@@ -105,7 +105,7 @@ int main() {
   Material *materials = NULL;
   Transaction *transaction = NULL;
 
-  char firstTransID[20] = "T000";
+  char initTransID[20] = "T000";
 
   int materialCount = 0;
   int transactionCount = 0;
@@ -146,7 +146,7 @@ int main() {
     }
     case 7: {
       createNewTransaction(&transaction, &transactionCount, materials,
-                           materialCount, firstTransID);
+                           materialCount, initTransID);
       break;
     }
     case 8: {
