@@ -17,6 +17,7 @@
 #define USE_TEST_DATA 1
 
 #define MAX_LIST_SIZE 100
+#define MAX_TRANS_SIZE 500
 
 typedef struct {
   char matId[10];
@@ -44,8 +45,8 @@ void createNewMaterial(Material **materials, int *materialCount);
 void updateMaterial(Material *materials, int materialCount);
 void updateMaterialStatus(Material *materials, int materialCount);
 int readStatusWithDefault();
-int findByID(Material *materials, int materialCount, char *target);
-void findByName(Material *materials, int materialCount, char *target);
+int findMaterialByID(Material *materials, int materialCount, char *target);
+void findMaterialByName(Material *materials, int materialCount, char *target);
 int findMaterialIndexById(Material *m, char *id, int materialCount);
 void findMaterialByIdOrName(Material *materials, int materialCount);
 void sortMaterial(Material *materials, int materialCount);
@@ -63,7 +64,7 @@ void transferMaterial(Transaction **transactions, Material *materials,
                       int type,
                       char *transID); // type 1: import | type 2: export
 void displayTransactionByID(Transaction *transactions, int transactionCount);
-void displayTransactionList(Transaction *transactions, int transactionIdx);
+void findTransactionByID(Transaction *transactions, int transactionCount);
 Transaction generateTransferHistory(char *matID, char *transID, int type);
 
 // ======= Log with color =======
@@ -91,7 +92,7 @@ void displayMenu() {
   logToConsole("choosen", " 5. Display material list\n");
   logToConsole("choosen", " 6. Sort material list\n");
   logToConsole("choosen", " 7. Make a transfer\n");
-  logToConsole("choosen", " 8. Search transactions\n");
+  logToConsole("choosen", " 8. View transaction history\n");
   logToConsole("choosen", "10. Exit\n");
   logToConsole("choosen", "11. Clear screen\n");
   logToConsole(
@@ -149,11 +150,7 @@ int main() {
       break;
     }
     case 8: {
-      displayTransactionByID(transaction, transactionCount);
-      break;
-    }
-    case 9: {
-      displayTransactionList(transaction, transactionCount);
+      findTransactionByID(transaction, transactionCount);
       break;
     }
     case 11: {
@@ -182,23 +179,49 @@ void readValidLine(char *buffer, size_t size, char *announce, char *valueType) {
     printf("%s", announce);
 
     if (fgets(buffer, size, stdin) == NULL) {
-      logToConsole("error", "Error reading input\n");
+      logToConsole("error", "Error reading input.\n");
       continue;
     }
 
-    // replace \n at the end of string by '\0'
+    size_t len = strlen(buffer);
+
+    // buffer does not contain '\n'
+    // this mean user maybe type more than (size - 1) characters.
+    if (len > 0 && buffer[len - 1] != '\n') {
+      int ch;
+      int tooLong = 0;
+
+      // flush the remaining characters in stdin
+      // if we see anything before '\n', the input was actually too long.
+      while ((ch = getchar()) != '\n' && ch != EOF) {
+        tooLong = 1;
+      }
+
+      if (tooLong) {
+        printf(
+            RED
+            "%s is too long (max %zu characters). Please type again.\n" RESET,
+            valueType, size - 1);
+        continue; // ask user to re-enter
+      }
+      // if 'tooLong' is 0 user type exactly (size - 1) chars + Enter
+      // valid : continue processing normally
+    }
+
+    // Remove trailing '\n' if it exists
     buffer[strcspn(buffer, "\n")] = '\0';
 
+    // check if the input is empty or only space
     int isEmpty = 1;
     for (int i = 0; buffer[i] != '\0'; i++) {
       if (!isspace((unsigned char)buffer[i])) {
         isEmpty = 0;
-        return; // valid (has non-space char)
+        break;
       }
     }
 
     if (isEmpty) {
-      printf(RED "%s cannot be empty. Please type again!!!\n" RESET, valueType);
+      printf(RED "%s cannot be empty. Please type again.\n" RESET, valueType);
       continue;
     }
 
@@ -352,7 +375,7 @@ void createNewTransaction(Transaction **transactions, int *transactionCount,
 void transferMaterial(Transaction **transactions, Material *materials,
                       int *transactionCount, int materialCount, char *id,
                       int type, char *transId) {
-  if (*transactionCount > MAX_LIST_SIZE) {
+  if (*transactionCount >= MAX_TRANS_SIZE) {
     printf(RED "Transaction list reached max size (%d). Cannot add more!" RESET,
            MAX_LIST_SIZE);
     return;
@@ -537,17 +560,17 @@ void findMaterialByIdOrName(Material *materials, int materialCount) {
   char target[50];
   readValidLine(target, sizeof(target), "Enter ID or Name to find: ", "target");
 
-  int idx = findByID(materials, materialCount, target);
+  int idx = findMaterialByID(materials, materialCount, target);
 
   if (idx != -1) {
     showCurrentInfo(materials, idx);
   } else {
-    findByName(materials, materialCount, target);
+    findMaterialByName(materials, materialCount, target);
   }
 }
 
 // ===== Find material by id ===== ( absolute id )
-int findByID(Material *materials, int materialCount, char *target) {
+int findMaterialByID(Material *materials, int materialCount, char *target) {
   if (materialCount == 0) {
     logToConsole("error", "Material list is empty.\n\n");
     return -1;
@@ -564,12 +587,6 @@ int findByID(Material *materials, int materialCount, char *target) {
 }
 
 // char to lowercase
-int charToLower(int c) {
-  if (c >= 'A' && c <= 'Z')
-    return c - 'A' + 'a';
-  return c;
-}
-
 // subtring checking
 int containsIgnoreCase(char *haystack, char *needle) {
   if (*needle == '\0')
@@ -582,8 +599,8 @@ int containsIgnoreCase(char *haystack, char *needle) {
 
   for (size_t i = 0; i <= lenH - lenN; i++) {
     size_t j = 0;
-    while (j < lenN && charToLower((unsigned char)haystack[i + j]) ==
-                           charToLower((unsigned char)needle[j])) {
+    while (j < lenN && tolower((unsigned char)haystack[i + j]) ==
+                           tolower((unsigned char)needle[j])) {
       j++;
     }
     if (j == lenN)
@@ -593,30 +610,34 @@ int containsIgnoreCase(char *haystack, char *needle) {
 }
 
 // ==== Find material by name (substring, case-insensitive) ====
-void findByName(Material *materials, int materialCount, char *target) {
-  Material m[100];
-  int count = 0;
+void findMaterialByName(Material *materials, int materialCount, char *target) {
   if (materialCount == 0) {
-    logToConsole("error", "Material list is empty.\n\n");
+    logToConsole("error", "Material list is empty!");
+    return;
+  }
+  Material *m = malloc(materialCount * sizeof(Material));
+  if (m == NULL) {
+    logToConsole("error", "Memory allocation failed.\n");
     return;
   }
 
-  int found = 0;
+  int count = 0;
+
   logToConsole("border", "\nSearch results:\n");
 
   for (int i = 0; i < materialCount; i++) {
     if (containsIgnoreCase(materials[i].name, target)) {
-      found = 1;
       m[count] = materials[i];
       count++;
     }
   }
 
-  if (!found) {
-    logToConsole("error", "No material matched this name.\n\n");
-  } else {
+  if (count > 0) {
     displayMaterialList(m, count);
+  } else {
+    logToConsole("error", "No material matched this name.\n\n");
   }
+  free(m);
 }
 
 // show current material info
@@ -634,16 +655,6 @@ void showCurrentInfo(Material *materials, int idx) {
 int findMaterialIndexById(Material *m, char *id, int count) {
   for (int i = 0; i < count; i++) {
     if (strcmp(m[i].matId, id) == 0) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-// find exist transaction id
-int findTransactionIndexById(Transaction *t, char *id, int count) {
-  for (int i = 0; i < count; i++) {
-    if (strcmp(t[i].matId, id) == 0) {
       return i;
     }
   }
@@ -699,6 +710,72 @@ void displayMaterialList(Material *materials, int materialCount) {
     printf("Total materials: %d\n", materialCount);
 
     printMaterialPage(materials, materialCount, currentPage - 1, pageSize);
+
+    printf("You are on page %d of %d.\n", currentPage, totalPages);
+
+    int pageToView;
+    readInt(&pageToView, "Enter page to view (0 = back to menu): ", "page");
+
+    if (pageToView == 0) {
+      break;
+    }
+
+    if (pageToView < 0 || pageToView > totalPages) {
+      printf(RED "Page must be between 1 and %d.\n" RESET, totalPages);
+      printf("Press Enter to continue...");
+      getchar();
+      continue;
+    }
+
+    currentPage = pageToView;
+  }
+}
+
+// ===== Display transaction list =====
+void printTransactionPage(Transaction *transactions, int transactionCount,
+                          int page, int pageSize) {
+  int start = page * pageSize;
+  int end = start + pageSize;
+
+  if (start >= transactionCount)
+    return;
+  if (end > transactionCount)
+    end = transactionCount;
+
+  printf("\n+------+------------+------------+------------+--------+\n");
+  printf("| No   | Trans ID   | Mat ID     | Date       | Type   |\n");
+  printf("+------+------------+------------+------------+--------+\n");
+
+  for (int i = start; i < end; i++) {
+    printf("| %4d | %-10s | %-10s | %-10s | %-6s |\n", i + 1,
+           transactions[i].transId, transactions[i].matId, transactions[i].date,
+           transactions[i].type);
+  }
+
+  printf("+------+------------+------------+------------+--------+\n");
+  printf("Page %d / %d\n\n", page + 1,
+         (transactionCount + pageSize - 1) / pageSize);
+}
+
+void displayTransactionByID(Transaction *transactions, int transactionCount) {
+  if (transactionCount == 0) {
+    logToConsole("error", "\nTransaction list is empty.\n\n");
+    return;
+  }
+
+  int pageSize = 3; // 2, 3, 5
+  int totalPages = (transactionCount + pageSize - 1) / pageSize;
+
+  int currentPage = 1;
+
+  while (1) {
+    system("clear");
+
+    logToConsole("border", "TRANSACTION LIST\n");
+    printf("Total transaction: %d\n", transactionCount);
+
+    printTransactionPage(transactions, transactionCount, currentPage - 1,
+                         pageSize);
 
     printf("You are on page %d of %d.\n", currentPage, totalPages);
 
@@ -779,34 +856,39 @@ void sortMaterial(Material *materials, int materialCount) {
   } while (mode != 3);
 }
 
-void displayTransactionList(Transaction *transactions, int transactionIdx) {
-  for (int i = 0; i < transactionIdx; i++) {
-    printf("transID: %s\n", transactions[i].transId);
-    printf("matID: %s\n", transactions[i].matId);
-    printf("type: %s\n", transactions[i].type);
-    printf("date: %s\n", transactions[i].date);
+void findTransactionByID(Transaction *transactions, int transactionCount) {
+  if (transactionCount == 0) {
+    logToConsole("error", "\nTransaction list is empty.\n\n");
+    return;
   }
-}
 
-void displayTransactionByID(Transaction *transactions, int transactionCount) {
-  char id[10];
-  readValidLine(id, sizeof(id),
-                "Enter material id to see transfer history: ", "Material ID");
-  bool isTransfered = false;
+  char matId[50];
+  readValidLine(
+      matId, sizeof(matId),
+      "Enter material ID to find transaction history: ", "Material ID");
+
+  Transaction *trans = malloc(transactionCount * sizeof(Transaction));
+  if (trans == NULL) {
+    logToConsole("error", "Memory allocation failed.\n");
+    return;
+  }
+
+  int count = 0;
+
   for (int i = 0; i < transactionCount; i++) {
-    if (strcmp(transactions[i].matId, id) == 0) {
-      isTransfered = true;
-      printf(GREEN "\n\nTransfer history of material with ID: %s\n" RESET, id);
-      printf("TransID: %s\n", transactions[i].transId);
-      printf("MatID  : %s\n", transactions[i].matId);
-      printf("Type   : %s\n", transactions[i].type);
-      printf("Date   : %s\n", transactions[i].date);
-      printf("\n");
+    if (strcasecmp(transactions[i].matId, matId) == 0) {
+      trans[count] = transactions[i];
+      count++;
     }
   }
-  if (!isTransfered) {
-    printf("Material with ID: %s is not yet imported or exported", id);
+
+  if (count > 0) {
+    displayTransactionByID(trans, count);
+  } else {
+    logToConsole("error", "No transaction found for this material ID.\n\n");
   }
+
+  free(trans);
 }
 
 void initTestData(Material **materials, int *materialCount) {
