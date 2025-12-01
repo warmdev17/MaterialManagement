@@ -14,8 +14,8 @@
 #define BLUE "\033[34m"
 #define RESET "\033[0m"
 
-#define USE_MATERIAL_TEST_DATA 0
-#define USE_TRANSACTION_TEST_DATA 0
+#define USE_MATERIAL_TEST_DATA 1
+#define USE_TRANSACTION_TEST_DATA 1
 
 #define MAX_LIST_SIZE 100
 #define MAX_TRANS_SIZE 500
@@ -961,16 +961,16 @@ void initTestMaterialData(Material **materials, int *materialCount) {
 
 void initTestTransData(Transaction **transactions, int *transCount) {
   Transaction testData[] = {
-      {"T001", "M001", "in", "01/02/2025"},
-      {"T002", "M002", "out", "01/02/2025"},
-      {"T003", "M003", "in", "02/02/2025"},
-      {"T004", "M005", "in", "03/02/2025"},
-      {"T005", "M007", "out", "03/02/2025"},
-      {"T006", "M010", "in", "04/02/2025"},
-      {"T007", "M011", "out", "04/02/2025"},
-      {"T008", "M014", "in", "05/02/2025"},
-      {"T009", "M018", "out", "05/02/2025"},
-      {"T010", "M023", "in", "06/02/2025"},
+      {"T001", "M001", "IN", "01/02/2025"},
+      {"T002", "M002", "OUT", "01/02/2025"},
+      {"T003", "M003", "IN", "02/02/2025"},
+      {"T004", "M005", "IN", "03/02/2025"},
+      {"T005", "M007", "OUT", "03/02/2025"},
+      {"T006", "M010", "IN", "04/02/2025"},
+      {"T007", "M011", "OUT", "04/02/2025"},
+      {"T008", "M014", "IN", "05/02/2025"},
+      {"T009", "M018", "OUT", "05/02/2025"},
+      {"T010", "M023", "IN", "06/02/2025"},
   };
 
   int count = sizeof(testData) / sizeof(testData[0]);
