@@ -93,8 +93,8 @@ void displayMenu() {
   logToConsole("choosen", " 6. Sort material list\n");
   logToConsole("choosen", " 7. Make a transfer\n");
   logToConsole("choosen", " 8. View transaction history\n");
+  logToConsole("choosen", " 9. Clear screen\n");
   logToConsole("choosen", "10. Exit\n");
-  logToConsole("choosen", "11. Clear screen\n");
   logToConsole(
       "border",
       "=============================================================\n");
@@ -153,7 +153,7 @@ int main() {
       findTransactionByID(transaction, transactionCount);
       break;
     }
-    case 11: {
+    case 9: {
       system("clear");
       break;
     }
