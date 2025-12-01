@@ -14,7 +14,8 @@
 #define BLUE "\033[34m"
 #define RESET "\033[0m"
 
-#define USE_TEST_DATA 1
+#define USE_MATERIAL_TEST_DATA 0
+#define USE_TRANSACTION_TEST_DATA 0
 
 #define MAX_LIST_SIZE 100
 #define MAX_TRANS_SIZE 500
@@ -36,7 +37,8 @@ typedef struct {
 
 // ======= PROTOTYPES =======
 void displayMenu();
-void initTestData(Material **materials, int *materialCount);
+void initTestMaterialData(Material **materials, int *materialCount);
+void initTestTransData(Transaction **transactions, int *transCount);
 
 void readValidLine(char *buffer, size_t size, char *announce, char *valueType);
 void readInt(int *number, char *announce, char *valueType);
@@ -110,9 +112,24 @@ int main() {
   int materialCount = 0;
   int transactionCount = 0;
 
-#if USE_TEST_DATA
-  initTestData(&materials, &materialCount);
+#if USE_MATERIAL_TEST_DATA
+  initTestMaterialData(&materials, &materialCount);
 #endif
+
+#if USE_TRANSACTION_TEST_DATA
+  initTestTransData(&transaction, &transactionCount);
+#endif
+
+  if (transactionCount > 0) {
+    char lastID[20];
+    strcpy(lastID, transaction[transactionCount - 1].transId);
+
+    int number = atoi(lastID + 1);
+    number++;
+    char prefix = lastID[0];
+
+    sprintf(initTransID, "%c%03d", prefix, number);
+  }
 
   int choice;
   do {
@@ -208,7 +225,7 @@ void readValidLine(char *buffer, size_t size, char *announce, char *valueType) {
       // valid : continue processing normally
     }
 
-    // Remove trailing '\n' if it exists
+    // Remove '\n' if it exists
     buffer[strcspn(buffer, "\n")] = '\0';
 
     // check if the input is empty or only space
@@ -305,7 +322,7 @@ void createNewMaterial(Material **materials, int *materialCount) {
 
   // get materials inventory quantity
   readInt(&(*materials + idxMaterial)->qty,
-          "Enter inventory quantity: ", "quantity");
+          "Enter inventory quantity ( must be greater than 0 ): ", "quantity");
 
   // get material unit
   readValidLine((*materials + idxMaterial)->unit,
@@ -401,8 +418,10 @@ void transferMaterial(Transaction **transactions, Material *materials,
         showCurrentInfo(materials, i);
         // import
         do {
-          readInt(&transCount,
-                  "Enter amount of material to import: ", "Amount of material");
+          readInt(
+              &transCount,
+              "Enter amount of material to import ( must be greater than 0 ): ",
+              "Amount of material");
           if (transCount <= 0) {
             logToConsole("error", "Amount must be greater than zero.\n");
           }
@@ -416,8 +435,10 @@ void transferMaterial(Transaction **transactions, Material *materials,
         do {
           showCurrentInfo(materials, i);
 
-          readInt(&transCount,
-                  "Enter amount of material to export: ", "Amount of material");
+          readInt(
+              &transCount,
+              "Enter amount of material to export ( must be greater than 0 ): ",
+              "Amount of material");
           if (transCount <= 0) {
             logToConsole("error", "Amount must be greater than zero.\n");
             continue;
@@ -852,6 +873,10 @@ void sortMaterial(Material *materials, int materialCount) {
       system("clear");
       return;
     }
+    default: {
+      logToConsole("error", "Invalid mode, please type again.\n");
+      break;
+    }
     }
   } while (mode != 3);
 }
@@ -891,7 +916,7 @@ void findTransactionByID(Transaction *transactions, int transactionCount) {
   free(trans);
 }
 
-void initTestData(Material **materials, int *materialCount) {
+void initTestMaterialData(Material **materials, int *materialCount) {
   Material testData[] = {
       {"M001", "Bolt 8mm", 120, "pcs", 1},
       {"M002", "Bolt 10mm", 95, "pcs", 1},
@@ -932,4 +957,32 @@ void initTestData(Material **materials, int *materialCount) {
 
   *materials = tmp;
   *materialCount = testCount;
+}
+
+void initTestTransData(Transaction **transactions, int *transCount) {
+  Transaction testData[] = {
+      {"T001", "M001", "in", "01/02/2025"},
+      {"T002", "M002", "out", "01/02/2025"},
+      {"T003", "M003", "in", "02/02/2025"},
+      {"T004", "M005", "in", "03/02/2025"},
+      {"T005", "M007", "out", "03/02/2025"},
+      {"T006", "M010", "in", "04/02/2025"},
+      {"T007", "M011", "out", "04/02/2025"},
+      {"T008", "M014", "in", "05/02/2025"},
+      {"T009", "M018", "out", "05/02/2025"},
+      {"T010", "M023", "in", "06/02/2025"},
+  };
+
+  int count = sizeof(testData) / sizeof(testData[0]);
+
+  Transaction *tmp = malloc(count * sizeof(Transaction));
+  if (tmp == NULL) {
+    printf(RED "Allocate transaction test data failed\n" RESET);
+    return;
+  }
+
+  memcpy(tmp, testData, count * sizeof(Transaction));
+
+  *transactions = tmp;
+  *transCount = count;
 }
